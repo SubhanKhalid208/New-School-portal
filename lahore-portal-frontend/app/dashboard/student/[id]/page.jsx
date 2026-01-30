@@ -1,0 +1,124 @@
+'use client'
+import { useEffect, useState, use } from 'react'; 
+import { toast } from 'react-hot-toast';
+import { BookOpen, GraduationCap, TrendingUp, CheckCircle, Calendar } from 'lucide-react';
+
+export default function StudentDashboardPage({ params }) {
+  // Params unwrap karna Next.js 15 ke liye zaruri hai
+  const resolvedParams = use(params);
+  const studentId = resolvedParams.id;
+
+  const [data, setData] = useState({ 
+    attendancePercentage: 0, 
+    totalPresent: 0, 
+    totalDays: 0, 
+    history: [] 
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!studentId) return;
+
+    async function fetchStats() {
+      try {
+        setLoading(true);
+        // Ensure API URL is correct in your .env file
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/student/attendance/student/${studentId}`);
+        const result = await res.json();
+        
+        if (result.success) {
+          setData(result);
+        } else {
+          toast.error(result.error || "Data load nahi ho saka");
+        }
+      } catch (err) {
+        toast.error("Lahore Portal: Connection error!");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchStats();
+  }, [studentId]);
+
+  // Unique subjects extraction logic
+  const registeredCourses = data.history && data.history.length > 0 
+    ? [...new Set(data.history.map(item => item.subject_name))]
+    : [];
+
+  if (loading) return (
+    <div className="min-h-screen flex items-center justify-center bg-[#0a0f1c]">
+      <div className="text-green-500 text-xl font-semibold animate-pulse italic">
+        Loading Lahore Portal Data for ID: {studentId}...
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="p-4 max-w-7xl mx-auto text-white">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold">Student Dashboard</h1>
+        <p className="text-gray-400 font-medium">Lahore Education Portal: Overview for ID {studentId}</p>
+      </div>
+
+      {/* Stats Cards Section */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+        {/* Attendance Card */}
+        <div className="bg-[#161d2f] p-8 rounded-3xl border border-gray-800 shadow-xl relative overflow-hidden group">
+          <TrendingUp className="absolute right-4 top-4 text-green-500/20 group-hover:scale-110 transition-transform" size={60} />
+          <p className="text-gray-400 text-sm font-semibold uppercase tracking-wider">Attendance</p>
+          <h2 className="text-5xl font-extrabold text-green-500 mt-2">{data.attendancePercentage}%</h2>
+          <div className="w-full bg-gray-700 h-2 mt-4 rounded-full overflow-hidden">
+             <div className="bg-green-500 h-full transition-all duration-1000" style={{ width: `${data.attendancePercentage}%` }}></div>
+          </div>
+        </div>
+
+        {/* Present Days Card */}
+        <div className="bg-[#161d2f] p-8 rounded-3xl border border-gray-800 shadow-xl relative overflow-hidden group">
+          <CheckCircle className="absolute right-4 top-4 text-blue-500/20 group-hover:scale-110 transition-transform" size={60} />
+          <p className="text-gray-400 text-sm font-semibold uppercase tracking-wider">Present Days</p>
+          <h2 className="text-5xl font-extrabold text-blue-500 mt-2">{data.totalPresent}</h2>
+          <p className="text-xs text-gray-500 mt-4">Total sessions attended</p>
+        </div>
+
+        {/* Total Days Card */}
+        <div className="bg-[#161d2f] p-8 rounded-3xl border border-gray-800 shadow-xl relative overflow-hidden group">
+          <Calendar className="absolute right-4 top-4 text-purple-500/20 group-hover:scale-110 transition-transform" size={60} />
+          <p className="text-gray-400 text-sm font-semibold uppercase tracking-wider">Total Days</p>
+          <h2 className="text-5xl font-extrabold text-purple-500 mt-2">{data.totalDays}</h2>
+          <p className="text-xs text-gray-500 mt-4">Working days in Lahore Portal</p>
+        </div>
+      </div>
+
+      {/* Registered Courses Section */}
+      <div className="mb-10">
+        <div className="flex items-center space-x-3 mb-6">
+          <BookOpen className="text-green-500" size={28} />
+          <h2 className="text-2xl font-bold">My Registered Courses</h2>
+        </div>
+        
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {registeredCourses.length > 0 ? (
+            registeredCourses.map((course, index) => (
+              <div key={index} className="bg-[#161d2f] p-6 rounded-2xl border border-gray-800 hover:border-green-500/50 transition-all hover:-translate-y-1 shadow-md">
+                <div className="flex items-center space-x-4">
+                  <div className="bg-green-500/10 p-3 rounded-xl text-green-500">
+                    <GraduationCap size={24} />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-white text-lg">{course || "General Subject"}</h3>
+                    <p className="text-xs text-gray-500">Course ID: LP-00{index + 1}</p>
+                  </div>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="col-span-full py-10 text-center text-gray-500 border border-dashed border-gray-700 rounded-2xl">
+              Abhi koi course data nahi mila.
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
