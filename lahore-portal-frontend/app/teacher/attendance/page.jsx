@@ -10,13 +10,11 @@ export default function AttendancePage() {
   const [markedStudents, setMarkedStudents] = useState([]); 
   const [loading, setLoading] = useState(true);
   
-  // Teacher ID safely nikalna
   const teacherId = Cookies.get('userId');
 
   useEffect(() => {
     async function initData() {
       try {
-        // server.js ke mutabiq sahi routes
         const [stuRes, courseRes] = await Promise.all([
           fetch(`${process.env.NEXT_PUBLIC_API_URL}/teacher/students`),
           fetch(`${process.env.NEXT_PUBLIC_API_URL}/courses`) 
@@ -37,14 +35,12 @@ export default function AttendancePage() {
     initData();
   }, []);
 
-  // Jab subject change ho toh purani attendance check karein
   useEffect(() => {
     if (selectedCourse) {
       const today = new Date().toISOString().split('T')[0];
       fetch(`${process.env.NEXT_PUBLIC_API_URL}/attendance/check-status?date=${today}&courseId=${selectedCourse}`)
         .then(res => res.json())
         .then(data => {
-          // IDs ki array set karna taake buttons disable hon
           setMarkedStudents(Array.isArray(data) ? data : []);
         })
         .catch(() => console.error("Attendance status check fail"));
@@ -74,7 +70,6 @@ export default function AttendancePage() {
 
       if (res.ok) {
         toast.success(`${status === 'present' ? 'Present' : 'Absent'} mark ho gayi!`);
-        // UI foran update karna
         setMarkedStudents(prev => [...prev, studentId]);
       }
     } catch (err) {

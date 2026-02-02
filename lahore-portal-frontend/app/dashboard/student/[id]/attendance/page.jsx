@@ -5,7 +5,6 @@ import { Calendar, CheckCircle, XCircle, Clock, ChevronLeft } from 'lucide-react
 import Link from 'next/link';
 
 export default function AttendanceReportPage({ params }) {
-  // Student ID fetch karne ke liye params ko unwrap kiya
   const resolvedParams = use(params);
   const studentId = resolvedParams.id;
 
@@ -22,7 +21,6 @@ export default function AttendanceReportPage({ params }) {
         const result = await res.json();
         
         if (result.success) {
-          // Latest attendance sab se upar dikhane ke liye sort kiya
           const sortedHistory = result.history.sort((a, b) => new Date(b.date) - new Date(a.date));
           setHistory(sortedHistory);
         } else {

@@ -2,7 +2,6 @@ import express from 'express';
 import pool from '../config/db.js';
 const router = express.Router();
 
-// Route: http://localhost:5000/api/student/attendance/student/:studentId
 router.get('/attendance/student/:studentId', async (req, res) => {
     const { studentId } = req.params;
 
@@ -11,7 +10,6 @@ router.get('/attendance/student/:studentId', async (req, res) => {
     }
 
     try {
-        // Stats Query
         const statsQuery = `
             SELECT 
                 COUNT(*) FILTER (WHERE LOWER(status) = 'present') as present_days,
@@ -25,7 +23,6 @@ router.get('/attendance/student/:studentId', async (req, res) => {
         const total = parseInt(statsResult.rows[0].total_days) || 0;
         const percentage = total > 0 ? Math.round((present / total) * 100) : 0;
 
-        // History Query with Course Title
         const historyQuery = `
             SELECT a.date, a.status, c.title as subject_name 
             FROM attendance a

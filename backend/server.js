@@ -1,8 +1,11 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import passport from 'passport'; 
+import session from 'express-session'; 
+import helmet from 'helmet'; 
 
-// Sahi aur Single Imports (Saare duplicate nikal diye hain)
+
 import authRoutes from './routes/authRoutes.js';
 import courseRoutes from './routes/courseRoutes.js';
 import teacherRoutes from './routes/teacherRoutes.js';
@@ -12,33 +15,61 @@ import studentRoutes from './routes/studentRoutes.js';
 
 const app = express();
 
-// Middleware (Inka order sab se zaroori hai)
+// --- SECURITY MIDDLEWARE ---
+app.use(helmet()); 
+
 app.use(cors({
   origin: 'http://localhost:3000',
   credentials: true
 }));
 
-app.use(express.json()); // Yeh line routes se upar honi chahiye lazmi!
+app.use(express.json());
 
-// API Endpoints (Check karein path exactly yahi ho)
+
+app.use(session({
+  
+  secret: process.env.SESSION_SECRET || 'fallback_secret_dont_use_in_prod',
+  resave: false,
+  saveUninitialized: false, 
+  cookie: { 
+    secure: false, 
+    httpOnly: true, 
+    maxAge: 24 * 60 * 60 * 1000 
+  }
+}));
+
+
+app.use(passport.initialize());
+app.use(passport.session());
+
+
+passport.serializeUser((user, done) => {
+  done(null, user);
+});
+
+passport.deserializeUser((user, done) => {
+  done(null, user);
+});
+
+
 app.use('/api/auth', authRoutes); 
 app.use('/api/courses', courseRoutes); 
 app.use('/api/teacher', teacherRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/attendance', attendanceRoutes); 
-app.use('/api/student', studentRoutes); // Isse aapka student dashboard connect hoga
+app.use('/api/student', studentRoutes);
 
 app.get('/', (req, res) => {
   res.send('Lahore Education API is Online and Running!');
 });
 
-// Error Handling
+
 app.use((err, req, res, next) => {
   console.error("SERVER ERROR:", err.stack);
   res.status(500).json({ success: false, message: "Server mein koi masla hai!" });
 });
 
-const PORT = 5000;
+const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
 });

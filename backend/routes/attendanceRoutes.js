@@ -3,8 +3,7 @@ import pool from '../config/db.js';
 
 const router = express.Router();
 
-// 1. Check Attendance Status (Yeh route buttons disable karega)
-// Frontend URL: /api/attendance/check-status
+
 router.get('/check-status', async (req, res) => {
   const { date, courseId } = req.query;
   if (!date || !courseId) return res.status(400).json({ error: "Date and courseId required" });
@@ -14,7 +13,6 @@ router.get('/check-status', async (req, res) => {
       "SELECT student_id FROM attendance WHERE date = $1 AND course_id = $2",
       [date, courseId]
     );
-    // Sirf un students ki IDs bhejein jinki attendance lag chuki hai
     const markedIds = result.rows.map(row => row.student_id);
     res.json(markedIds);
   } catch (err) {
@@ -23,7 +21,6 @@ router.get('/check-status', async (req, res) => {
   }
 });
 
-// 2. Mark or Update Attendance
 router.post('/mark', async (req, res) => {
   const { studentId, courseId, status, date, teacherId } = req.body; 
   const attendanceDate = date || new Date().toISOString().split('T')[0];
@@ -52,7 +49,6 @@ router.post('/mark', async (req, res) => {
   }
 });
 
-// 3. Get Today's Summary
 router.get('/today', async (req, res) => {
   const { date, courseId } = req.query; 
   try {
@@ -66,7 +62,6 @@ router.get('/today', async (req, res) => {
   }
 });
 
-// 4. Get Student History
 router.get('/student/:id', async (req, res) => {
   const { id } = req.params;
   try {

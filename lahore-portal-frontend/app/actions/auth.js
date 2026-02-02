@@ -2,7 +2,7 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
 export async function handleLogin(formData) {
   const email = formData.get('email');
@@ -22,31 +22,32 @@ export async function handleLogin(formData) {
       return { success: false, error: data.error || "Login fail ho gaya!" };
     }
 
+    const user = data.user; 
     const cookieStore = await cookies();
-    const userId = data.id || data.user_id; 
 
-    // userId ko read-able banane ke liye httpOnly ko false karein
-    cookieStore.set('userId', userId.toString(), { 
-      httpOnly: false, // Dashboard pe js-cookie se read karne ke liye false lazmi hai
+    cookieStore.set('token', data.token, { httpOnly: true, path: '/' });
+
+    cookieStore.set('userId', user.id.toString(), { 
+      httpOnly: false, 
       secure: process.env.NODE_ENV === 'production', 
       path: '/',
-      maxAge: 60 * 60 * 24 // 1 Din
+      maxAge: 60 * 60 * 24 
     });
     
-    cookieStore.set('role', data.role, { 
-      httpOnly: false, // Sidebar pe role check karne ke liye false rakhein
+    cookieStore.set('role', user.role, { 
+      httpOnly: false, 
       secure: process.env.NODE_ENV === 'production', 
       path: '/',
       maxAge: 60 * 60 * 24
     });
 
-    if (data.role === 'admin') targetRoute = '/admin';
-    else if (data.role === 'teacher') targetRoute = '/teacher';
-    else targetRoute = '/dashboard';
+    if (user.role === 'admin') targetRoute = '/admin';
+    else if (user.role === 'teacher') targetRoute = '/teacher';
+    else targetRoute = `/dashboard/student/${user.id}`; 
 
   } catch (error) {
     console.error("Auth Action Error:", error);
-    return { success: false, error: "Server se rabta nahi ho saka!" };
+    return { success: false, error: "Server se rabta nahi ho saka! Check karein backend 5000 pe on hai." };
   }
 
   if (targetRoute) {
@@ -58,5 +59,6 @@ export async function handleLogout() {
   const cookieStore = await cookies();
   cookieStore.delete('userId');
   cookieStore.delete('role');
+  cookieStore.delete('token');
   redirect('/login');
 }

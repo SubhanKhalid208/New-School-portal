@@ -1,15 +1,28 @@
 'use client'
 import { handleLogin } from '../actions/auth';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
-import { useRouter } from 'next/navigation'; // Redirect ke liye zaroori hai
-
+import { useRouter } from 'next/navigation';
+import Cookies from 'js-cookie'; 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
+  const [isClient, setIsClient] = useState(false);
   const router = useRouter();
 
-  async function handleSubmit(formData) {
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  const handleGoogleLogin = () => {
+    window.location.href = "http://localhost:5000/api/auth/google";
+  };
+
+  const onSubmit = async (e) => {
+    e.preventDefault();
     setLoading(true);
+    
+    const formData = new FormData(e.currentTarget);
+    
     try {
       const result = await handleLogin(formData);
 
@@ -18,31 +31,35 @@ export default function LoginPage() {
         setLoading(false);
       } else {
         toast.success("Login Successful!");
-        
-        // ROLE BASED REDIRECTION:
-        // Yahan hum check kar rahe hain ke user ka role kya hai
+
+        Cookies.set('role', result.role);
+        if (result.userId) Cookies.set('userId', result.userId);
+
         if (result.role === 'student') {
-          router.push('/dashboard/student'); // Student ko 2nd screen par bhejna
+          const targetPath = result.userId ? `/dashboard/student/${result.userId}` : '/dashboard/student';
+          router.push(targetPath);
         } else if (result.role === 'teacher') {
           router.push('/teacher');
         } else if (result.role === 'admin') {
           router.push('/admin');
         } else {
-          router.push('/dashboard'); // Default rasta
+          router.push('/dashboard');
         }
       }
     } catch (err) {
       toast.error("Kuch masla hua hai!");
       setLoading(false);
     }
-  }
+  };
+
+  if (!isClient) return null;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#0a0f1c]">
       <div className="bg-[#161d2f] p-8 rounded-2xl shadow-xl w-full max-w-md border border-gray-700">
         <h2 className="text-3xl font-bold text-white mb-6 text-center">Lahore Portal</h2>
         
-        <form action={handleSubmit} className="space-y-5">
+        <form onSubmit={onSubmit} className="space-y-5">
           <div>
             <label className="block text-gray-400 mb-2">Email Address</label>
             <input 
@@ -67,11 +84,28 @@ export default function LoginPage() {
 
           <button 
             disabled={loading}
+            type="submit"
             className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded-lg transition-all"
           >
             {loading ? 'Logging in...' : 'Login Now'}
           </button>
         </form>
+
+        <div className="mt-6">
+          <div className="relative flex items-center justify-center mb-6">
+            <div className="border-t border-gray-700 w-full"></div>
+            <span className="bg-[#161d2f] px-3 text-gray-500 text-sm absolute">OR</span>
+          </div>
+
+          <button 
+            onClick={handleGoogleLogin}
+            type="button"
+            className="w-full flex items-center justify-center gap-3 bg-white hover:bg-gray-100 text-gray-900 font-bold py-3 rounded-lg transition-all"
+          >
+            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-5 h-5" alt="G" />
+            Continue with Google
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -8,7 +8,6 @@ export default function TeacherDashboard() {
   const [stats, setStats] = useState({ totalStudents: 0, totalSubjects: 0, teacherName: '' });
   const [loading, setLoading] = useState(true);
   
-  // States for Add/Edit Logic
   const [showModal, setShowModal] = useState(false);
   const [editingCourse, setEditingCourse] = useState(null);
   const [formData, setFormData] = useState({ title: '', description: '' });
@@ -28,7 +27,6 @@ export default function TeacherDashboard() {
 
       setMyCourses(Array.isArray(courses) ? courses : []);
       
-      // Data mapping ko clear kar diya taake state sahi update ho
       setStats({
         totalStudents: statistics.totalStudents || 0,
         totalSubjects: statistics.totalSubjects || 0,
@@ -47,7 +45,6 @@ export default function TeacherDashboard() {
     }
   }, [teacherId]);
 
-  // ADD / EDIT Handler
   const handleSubmit = async (e) => {
     e.preventDefault();
     const method = editingCourse ? 'PUT' : 'POST';
@@ -76,7 +73,6 @@ export default function TeacherDashboard() {
     }
   };
 
-  // DELETE Handler
   const handleDelete = async (id) => {
     if (!window.confirm("Kya aap waqai delete karna chahte hain?")) return;
     try {

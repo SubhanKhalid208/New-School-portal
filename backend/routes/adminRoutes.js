@@ -4,36 +4,32 @@ import pool from '../config/db.js';
 import { v2 as cloudinary } from 'cloudinary';
 import multer from 'multer';
 
-// 1. CLOUDINARY CONFIGURATION
 cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
     api_key: process.env.CLOUDINARY_API_KEY,
     api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
-// 2. MULTER SETUP (Memory storage use kar rahe hain taake seedha Cloudinary ko jaye)
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
-// --- NAYA IMAGE UPLOAD ROUTE ---
 router.post('/upload-image', upload.single('file'), async (req, res) => {
     try {
         if (!req.file) return res.status(400).json({ error: "File upload fail hui!" });
 
-        // Buffer ko base64 mein convert kar rahe hain upload ke liye
         const fileBase64 = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
         
         const result = await cloudinary.uploader.upload(fileBase64, {
             folder: "lahore_portal_users",
         });
 
-        res.json({ url: result.secure_url }); // Yeh URL frontend ke formData mein jayega
+        res.json({ url: result.secure_url }); 
     } catch (err) {
         res.status(500).json({ error: "Cloudinary Error: " + err.message });
     }
 });
 
-// 1. GET ADMIN STATS
+
 router.get('/stats', async (req, res) => {
     try {
         const teachers = await pool.query("SELECT COUNT(*) FROM users WHERE role = 'teacher'");
@@ -50,7 +46,6 @@ router.get('/stats', async (req, res) => {
     }
 });
 
-// 2. GET ALL USERS WITH SEARCH (Updated with profile_pic column)
 router.get('/users', async (req, res) => {
     const { search } = req.query;
     try {
@@ -71,7 +66,6 @@ router.get('/users', async (req, res) => {
     }
 });
 
-// 3. CREATE NEW USER (Updated with profile_pic)
 router.post('/users', async (req, res) => {
     const { name, email, role, password, profile_pic } = req.body;
     try {
@@ -86,7 +80,6 @@ router.post('/users', async (req, res) => {
     }
 });
 
-// 4. EDIT/UPDATE USER (Updated with profile_pic)
 router.put('/users/:id', async (req, res) => {
     const { id } = req.params;
     const { name, email, role, profile_pic } = req.body;
@@ -106,7 +99,6 @@ router.put('/users/:id', async (req, res) => {
     }
 });
 
-// 5. DELETE USER
 router.delete('/users/:id', async (req, res) => {
     const { id } = req.params;
     try {

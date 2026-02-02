@@ -3,17 +3,14 @@ import pool from '../config/db.js';
 const router = express.Router();
 import * as teacherController from '../controllers/teacherController.js';
 
-// 1. Teacher Dashboard Stats + Name
 router.get('/stats', async (req, res) => {
     const { teacherId } = req.query;
     if (!teacherId) return res.status(400).json({ error: "Teacher ID missing hai." });
 
     try {
-        // Stats queries
         const studentCount = await pool.query("SELECT COUNT(*) FROM users WHERE LOWER(role) = 'student'");
         const subjectCount = await pool.query("SELECT COUNT(*) FROM courses WHERE teacher_id = $1", [teacherId]);
         
-        // Teacher ka naam nikalne ke liye query
         const teacherInfo = await pool.query("SELECT name FROM users WHERE id = $1", [teacherId]);
 
         res.json({
@@ -28,7 +25,6 @@ router.get('/stats', async (req, res) => {
     }
 });
 
-// 2. Specific Teacher ke Courses
 router.get('/my-courses', async (req, res) => {
     const { teacherId } = req.query;
     if (!teacherId) return res.status(400).json({ error: "Teacher ID missing hai." });
@@ -45,7 +41,6 @@ router.get('/my-courses', async (req, res) => {
     }
 });
 
-// 3. ADD New Subject
 router.post('/courses/add', async (req, res) => {
     const { title, description, teacher_id } = req.body;
     try {
@@ -59,7 +54,6 @@ router.post('/courses/add', async (req, res) => {
     }
 });
 
-// 4. EDIT/UPDATE Subject
 router.put('/courses/:id', async (req, res) => {
     const { id } = req.params;
     const { title, description } = req.body;
@@ -74,7 +68,6 @@ router.put('/courses/:id', async (req, res) => {
     }
 });
 
-// 5. DELETE Subject
 router.delete('/courses/:id', async (req, res) => {
     const { id } = req.params;
     try {
@@ -85,7 +78,6 @@ router.delete('/courses/:id', async (req, res) => {
     }
 });
 
-// 6. Students List & Attendance
 router.get('/students', async (req, res) => {
     try {
         const result = await pool.query('SELECT id, "name", email FROM "users" WHERE LOWER(role) = \'student\' ORDER BY "name" ASC');

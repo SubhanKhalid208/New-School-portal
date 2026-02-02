@@ -4,7 +4,6 @@ import { toast } from 'react-hot-toast';
 import { BookOpen, GraduationCap, TrendingUp, CheckCircle, Calendar } from 'lucide-react';
 
 export default function StudentDashboardPage({ params }) {
-  // Params unwrap karna Next.js 15 ke liye zaruri hai
   const resolvedParams = use(params);
   const studentId = resolvedParams.id;
 
@@ -22,7 +21,6 @@ export default function StudentDashboardPage({ params }) {
     async function fetchStats() {
       try {
         setLoading(true);
-        // Ensure API URL is correct in your .env file
         const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/student/attendance/student/${studentId}`);
         const result = await res.json();
         
@@ -41,7 +39,6 @@ export default function StudentDashboardPage({ params }) {
     fetchStats();
   }, [studentId]);
 
-  // Unique subjects extraction logic
   const registeredCourses = data.history && data.history.length > 0 
     ? [...new Set(data.history.map(item => item.subject_name))]
     : [];

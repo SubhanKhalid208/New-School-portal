@@ -8,14 +8,15 @@ import Cookies from 'js-cookie';
 export default function Sidebar({ role, onCollapseChange }) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [userId, setUserId] = useState(null);
+  const [isMounted, setIsMounted] = useState(false); 
   const pathname = usePathname();
 
   useEffect(() => {
+    setIsMounted(true); 
     const id = Cookies.get('userId');
     if (id) setUserId(id);
   }, []);
 
-  // Yeh part Layout ko batata hai ke sidebar band hai ya khula taake content adjust ho
   useEffect(() => {
     if (onCollapseChange) onCollapseChange(isCollapsed);
   }, [isCollapsed, onCollapseChange]);
@@ -24,7 +25,6 @@ export default function Sidebar({ role, onCollapseChange }) {
     admin: [
       { name: 'Dashboard', path: '/admin', icon: <LayoutDashboard size={20}/> },
       { name: 'User Management', path: '/admin/users', icon: <Users size={20}/> },
-      // FIX: Yahan se Courses wala button remove kar diya gaya hai
     ],
     teacher: [
       { name: 'My Dashboard', path: '/teacher', icon: <LayoutDashboard size={20}/> },
@@ -53,6 +53,8 @@ export default function Sidebar({ role, onCollapseChange }) {
     window.location.href = '/login';
   };
 
+  if (!isMounted) return <div className="w-20 h-screen bg-[#161d2f]"></div>;
+
   return (
     <div 
       className={`h-screen bg-[#161d2f] border-r border-gray-800 flex flex-col p-4 fixed left-0 top-0 z-50 transition-all duration-300 ${
@@ -70,6 +72,7 @@ export default function Sidebar({ role, onCollapseChange }) {
         <h1 className={`font-bold text-green-500 transition-all ${isCollapsed ? 'text-sm' : 'text-xl italic font-black'}`}>
           {isCollapsed ? 'LP' : 'Lahore Portal'}
         </h1>
+        {/* HYDRATION FIX: Role text only renders when mounted */}
         {!isCollapsed && <p className="text-[10px] text-gray-500 uppercase font-bold tracking-widest">{role} Panel</p>}
       </div>
 
