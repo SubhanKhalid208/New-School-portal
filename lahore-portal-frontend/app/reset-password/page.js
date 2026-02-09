@@ -14,9 +14,11 @@ function ResetPasswordContent() {
     const [message, setMessage] = useState('');
     const [loading, setLoading] = useState(false);
 
-    const getBaseUrl = () => {
-      const url = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
-      return url.endsWith('/api') ? url : `${url}/api`;
+    const getApiUrl = () => {
+      const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+      const cleanEndpoint = '/auth/reset-password';
+      const withoutApi = cleanEndpoint.replace(/^\/api/, '');
+      return `${BASE_URL}/api${withoutApi}`;
     };
 
     const handleSubmit = async (e) => {
@@ -35,13 +37,17 @@ function ResetPasswordContent() {
                 return;
             }
 
-            const API_URL = getBaseUrl();
-            console.log(`📡 Sending reset password request to: ${API_URL}/auth/reset-password`);
+            const API_URL = getApiUrl();
+            console.log(`📡 Sending reset password request to: ${API_URL}`);
             console.log(`🔐 Token: ${token.substring(0, 10)}...`);
             
-            const res = await axios.post(`${API_URL}/auth/reset-password`, {
+            const res = await axios.post(API_URL, {
                 token,
                 password
+            }, {
+              headers: {
+                'Content-Type': 'application/json'
+              }
             });
 
             console.log("✅ Password update successful");

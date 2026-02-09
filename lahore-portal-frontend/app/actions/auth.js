@@ -2,30 +2,29 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 
-// ✅ Fixed: Ensuring the URL is trimmed and handled correctly
-const getBaseUrl = () => {
-  const url = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
-  // Agar URL ke aakhir mein /api hai toh usay handle karein
-  return url.endsWith('/api') ? url : `${url}/api`;
+// ✅ Centralized API URL construction
+const getApiUrl = (endpoint) => {
+  const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+  const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  const withoutApi = cleanEndpoint.replace(/^\/api/, '');
+  return `${BASE_URL}/api${withoutApi}`;
 };
 
 export async function handleLogin(formData) {
   const email = formData.get('email');
   const password = formData.get('password');
-  const API_URL = getBaseUrl();
+  const API_URL = getApiUrl('/auth/login');
 
   try {
-    console.log(`Attempting login to: ${API_URL}/auth/login`);
+    console.log(`📡 Attempting login to: ${API_URL}`);
 
-    const res = await fetch(`${API_URL}/auth/login`, {
+    const res = await fetch(API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
-      // Server Action mein cache: 'no-store' hona zaroori hai taake hamesha fresh data aaye
       cache: 'no-store'
     });
 
-    // Content-Type check taake agar HTML error aaye toh code crash na ho
     const contentType = res.headers.get("content-type");
     let data;
     if (contentType && contentType.includes("application/json")) {
@@ -43,7 +42,7 @@ export async function handleLogin(formData) {
 
     // ✅ Session Cookies Setup
     cookieStore.set('token', data.token, { 
-      httpOnly: false, // Client-side JS (js-cookie) ke liye false rakha hai
+      httpOnly: false,
       secure: process.env.NODE_ENV === 'production', 
       sameSite: 'lax',
       path: '/',
@@ -74,8 +73,8 @@ export async function handleLogin(formData) {
     };
 
   } catch (error) {
-    console.error("Auth Action Error:", error.message);
-    return { success: false, error: "Server se rabta nahi ho saka! Code: " + error.message };
+    console.error("❌ Auth Action Error:", error.message);
+    return { success: false, error: "Server se rabta nahi ho saka! " + error.message };
   }
 }
 
@@ -83,7 +82,7 @@ export async function handleSignup(formData) {
   const name = formData.get('name');
   const email = formData.get('email');
   const dob = formData.get('dob');
-  const API_URL = getBaseUrl();
+  const API_URL = getApiUrl('/auth/signup');
 
   try {
     // Input validation
@@ -92,9 +91,9 @@ export async function handleSignup(formData) {
     }
 
     console.log(`📝 Registration attempt for: ${email}`);
-    console.log(`📡 Sending to: ${API_URL}/auth/signup`);
+    console.log(`📡 Sending to: ${API_URL}`);
 
-    const res = await fetch(`${API_URL}/auth/signup`, {
+    const res = await fetch(API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 

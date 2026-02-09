@@ -32,13 +32,13 @@ export default function LoginPage() {
       const result = await handleLogin(formData);
       
       // Debugging ke liye: Browser console mein check karein
-      console.log("Login Result:", result);
+      console.log("🔐 Login Result:", result);
 
       if (result?.error) {
-        toast.error(result.error);
+        toast.error(result.error || "Login fail ho gaya!");
         setLoading(false);
       } else if (result) {
-        toast.success("Login Successful!");
+        toast.success("✅ Login Successful! Redirect ho rahe hain...");
 
         // --- FIXED & FORCED SAVING ---
         // 1. Token check aur saving
@@ -48,9 +48,9 @@ export default function LoginPage() {
           Cookies.set('token', tokenToSave, { expires: 1, path: '/' });
           // LocalStorage mein backup save karein
           localStorage.setItem('token', tokenToSave);
-          console.log("Token saved successfully!");
+          console.log("✅ Token saved successfully!");
         } else {
-          console.warn("Warning: No token received from backend!");
+          console.warn("⚠️ Warning: No token received from backend!");
         }
         
         // 2. Role aur UserID saving
@@ -75,8 +75,8 @@ export default function LoginPage() {
 
       }
     } catch (err) {
-      console.error("Critical Login Error:", err);
-      toast.error("Server se rabta nahi ho saka! Console check karein.");
+      console.error("❌ Critical Login Error:", err);
+      toast.error("Server se rabta nahi ho saka! Browser console check karein.");
       setLoading(false);
     }
   };

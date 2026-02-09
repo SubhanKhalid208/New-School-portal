@@ -3,6 +3,7 @@ import { useEffect, useState, use } from 'react';
 import { toast } from 'react-hot-toast';
 import { Calendar, CheckCircle, XCircle, Clock, ChevronLeft, Info } from 'lucide-react';
 import Link from 'next/link';
+import { getApiUrl, fetchWithRetry } from '@/app/utils/api';
 
 export default function AttendanceReportPage({ params }) {
   const resolvedParams = use(params);
@@ -18,22 +19,26 @@ export default function AttendanceReportPage({ params }) {
       try {
         setLoading(true);
         const token = localStorage.getItem('token');
+        
+        // Use centralized API URL helper
+        const url = getApiUrl(`/student/attendance/student/${studentId}`);
+        console.log(`📡 Fetching attendance from: ${url}`);
 
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/student/attendance/student/${studentId}`, {
+        const res = await fetchWithRetry(url, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}` 
-          },
-          cache: 'no-store' 
-        });
+          }
+        }, 1); // 1 retry
 
         if (res.status === 401 || res.status === 403) {
-          toast.error("Session expired or Access Denied.");
+          toast.error("Session expire ho gaya ya access denied hai.");
           return;
         }
 
         const result = await res.json();
+        console.log("✅ Attendance response:", result);
         
         if (result.success) {
           if (result.history && result.history.length > 0) {
@@ -41,14 +46,15 @@ export default function AttendanceReportPage({ params }) {
             setHistory(sortedHistory);
           } else {
             setHistory([]);
-            console.log("Lahore Portal: No attendance records for student 136 yet.");
+            console.log("ℹ️ No attendance records for student yet.");
           }
         } else {
-          toast.error("Data fetch karne mein masla hua.");
+          console.error("❌ API returned error:", result.error);
+          toast.error(result.error || "Data fetch karne mein masla hua.");
         }
       } catch (err) {
-        console.error("Fetch Error:", err);
-        toast.error("Lahore Portal: Connection error!");
+        console.error("❌ Fetch Error:", err);
+        toast.error("Lahore Portal: Server se rabta nahi ho saka!");
       } finally {
         setLoading(false);
       }
