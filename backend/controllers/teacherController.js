@@ -7,8 +7,6 @@ export const getStats = async (req, res) => {
         if (!teacherId) {
             return res.status(400).json({ error: "Teacher ID missing hai." });
         }
-
-      
         const studentRes = await pool.query("SELECT COUNT(*) FROM users WHERE LOWER(role) = 'student'");
         
         const subjectRes = await pool.query("SELECT COUNT(*) FROM courses WHERE teacher_id = $1", [teacherId]);

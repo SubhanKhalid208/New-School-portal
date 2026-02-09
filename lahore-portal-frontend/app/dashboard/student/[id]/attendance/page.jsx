@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState, use } from 'react';
 import { toast } from 'react-hot-toast';
-import { Calendar, CheckCircle, XCircle, Clock, ChevronLeft } from 'lucide-react';
+import { Calendar, CheckCircle, XCircle, Clock, ChevronLeft, Info } from 'lucide-react';
 import Link from 'next/link';
 
 export default function AttendanceReportPage({ params }) {
@@ -17,14 +17,34 @@ export default function AttendanceReportPage({ params }) {
     async function fetchAttendance() {
       try {
         setLoading(true);
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/student/attendance/student/${studentId}`);
+        const token = localStorage.getItem('token');
+
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/student/attendance/student/${studentId}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}` 
+          },
+          cache: 'no-store' 
+        });
+
+        if (res.status === 401 || res.status === 403) {
+          toast.error("Session expired or Access Denied.");
+          return;
+        }
+
         const result = await res.json();
         
         if (result.success) {
-          const sortedHistory = result.history.sort((a, b) => new Date(b.date) - new Date(a.date));
-          setHistory(sortedHistory);
+          if (result.history && result.history.length > 0) {
+            const sortedHistory = result.history.sort((a, b) => new Date(b.date) - new Date(a.date));
+            setHistory(sortedHistory);
+          } else {
+            setHistory([]);
+            console.log("Lahore Portal: No attendance records for student 136 yet.");
+          }
         } else {
-          toast.error("Records nahi mil sakay");
+          toast.error("Data fetch karne mein masla hua.");
         }
       } catch (err) {
         console.error("Fetch Error:", err);
@@ -87,11 +107,10 @@ export default function AttendanceReportPage({ params }) {
                     <td className="px-6 py-5">
                       <div className="flex items-center gap-2">
                         <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                        {record.subject_name}
+                        {record.subject_name || 'General'}
                       </div>
                     </td>
                     <td className="px-6 py-5">
-                      {/* FIX: Lowercase check taake DB format (present/Present) ka masla na ho */}
                       {record.status?.toLowerCase() === 'present' ? (
                         <span className="flex items-center gap-1 text-green-500 bg-green-500/10 px-3 py-1 rounded-full text-xs font-bold w-fit">
                           <CheckCircle size={14} /> PRESENT
@@ -105,7 +124,6 @@ export default function AttendanceReportPage({ params }) {
                     <td className="px-6 py-5 text-gray-400 text-sm">
                       <div className="flex items-center gap-2">
                         <Clock size={14} /> 
-                        {/* FIX: Invalid Date check taake null values handle ho sakein */}
                         {record.created_at ? new Date(record.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'N/A'}
                       </div>
                     </td>
@@ -113,8 +131,12 @@ export default function AttendanceReportPage({ params }) {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="4" className="px-6 py-20 text-center text-gray-500 italic">
-                    Lahore Portal par koi attendance record nahi mila.
+                  <td colSpan="4" className="px-6 py-20 text-center">
+                    <div className="flex flex-col items-center gap-3">
+                      <Info className="text-blue-400 w-10 h-10" />
+                      <p className="text-gray-400 text-lg italic">Khushamdeed!</p>
+                      <p className="text-gray-500 text-sm">Abhi tak Lahore Portal par aapka koi attendance record nahi mila.</p>
+                    </div>
                   </td>
                 </tr>
               )}

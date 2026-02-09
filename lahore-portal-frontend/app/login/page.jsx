@@ -3,7 +3,9 @@ import { handleLogin } from '../actions/auth';
 import { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import Cookies from 'js-cookie'; 
+
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [isClient, setIsClient] = useState(false);
@@ -13,8 +15,10 @@ export default function LoginPage() {
     setIsClient(true);
   }, []);
 
+  // ✅ FIXED: Using Environment Variable instead of hardcoded localhost
   const handleGoogleLogin = () => {
-    window.location.href = "http://localhost:5000/api/auth/google";
+    const backendURL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+    window.location.href = `${backendURL}/api/auth/google`;
   };
 
   const onSubmit = async (e) => {
@@ -24,30 +28,55 @@ export default function LoginPage() {
     const formData = new FormData(e.currentTarget);
     
     try {
+      // Server action ko call kar rahe hain
       const result = await handleLogin(formData);
+      
+      // Debugging ke liye: Browser console mein check karein
+      console.log("Login Result:", result);
 
       if (result?.error) {
         toast.error(result.error);
         setLoading(false);
-      } else {
+      } else if (result) {
         toast.success("Login Successful!");
 
-        Cookies.set('role', result.role);
-        if (result.userId) Cookies.set('userId', result.userId);
-
-        if (result.role === 'student') {
-          const targetPath = result.userId ? `/dashboard/student/${result.userId}` : '/dashboard/student';
-          router.push(targetPath);
-        } else if (result.role === 'teacher') {
-          router.push('/teacher');
-        } else if (result.role === 'admin') {
-          router.push('/admin');
+        // --- FIXED & FORCED SAVING ---
+        // 1. Token check aur saving
+        const tokenToSave = result.token;
+        if (tokenToSave) {
+          // Cookie mein save karein (poori domain ke liye)
+          Cookies.set('token', tokenToSave, { expires: 1, path: '/' });
+          // LocalStorage mein backup save karein
+          localStorage.setItem('token', tokenToSave);
+          console.log("Token saved successfully!");
         } else {
-          router.push('/dashboard');
+          console.warn("Warning: No token received from backend!");
         }
+        
+        // 2. Role aur UserID saving
+        Cookies.set('role', result.role || 'student', { expires: 1, path: '/' });
+        if (result.userId) {
+          Cookies.set('userId', result.userId, { expires: 1, path: '/' });
+        }
+
+        // --- REDIRECT LOGIC ---
+        // Thora delay taake cookies set ho jayein
+        setTimeout(() => {
+          if (result.role === 'student') {
+            router.push(result.userId ? `/dashboard/student/${result.userId}` : '/dashboard/student');
+          } else if (result.role === 'teacher') {
+            router.push('/teacher');
+          } else if (result.role === 'admin') {
+            router.push('/admin');
+          } else {
+            router.push('/dashboard');
+          }
+        }, 500);
+
       }
     } catch (err) {
-      toast.error("Kuch masla hua hai!");
+      console.error("Critical Login Error:", err);
+      toast.error("Server se rabta nahi ho saka! Console check karein.");
       setLoading(false);
     }
   };
@@ -105,6 +134,15 @@ export default function LoginPage() {
             <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-5 h-5" alt="G" />
             Continue with Google
           </button>
+        </div>
+
+        <div className="mt-6 text-center">
+          <p className="text-gray-400">
+            ابھی account nahi hai?{' '}
+            <Link href="/register" className="text-green-500 hover:text-green-400 font-bold">
+              Register karein
+            </Link>
+          </p>
         </div>
       </div>
     </div>

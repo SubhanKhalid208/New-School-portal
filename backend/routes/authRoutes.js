@@ -6,65 +6,98 @@ import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import pool from '../config/db.js';
 import { verifyToken } from '../middleware/authMiddleware.js'; 
 
-passport.use(new GoogleStrategy({
-    clientID: process.env.GOOGLE_CLIENT_ID,
-    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    callbackURL: "http://localhost:5000/api/auth/google/callback" 
-  },
-  async (accessToken, refreshToken, profile, done) => {
-    try {
-        const { displayName, emails, photos } = profile;
-        const email = emails[0].value;
-        const profile_pic = photos[0]?.value || null;
+const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:3000";
 
-        let user = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
+// Railway par deployment ke liye full URL lazmi hai
+const CALLBACK_URL = process.env.GOOGLE_CALLBACK_URL || "https://schoolportalbackend-production-e803.up.railway.app/api/auth/google/callback";
 
-        if (user.rows.length === 0) {
-            const newUser = await pool.query(
-                "INSERT INTO users (name, email, profile_pic, role, is_approved) VALUES ($1, $2, $3, 'student', true) RETURNING *",
-                [displayName, email, profile_pic]
-            );
-            return done(null, newUser.rows[0]);
+// ✅ CRITICAL FIX: Server crash se bachne ke liye check
+if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+    console.error("❌ ERROR: GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET is missing in .env/Railway Variables!");
+} else {
+    // Google Strategy Configuration
+    passport.use(new GoogleStrategy({
+        clientID: process.env.GOOGLE_CLIENT_ID,
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+        callbackURL: CALLBACK_URL 
+      },
+      async (accessToken, refreshToken, profile, done) => {
+        try {
+            const { displayName, emails, photos } = profile;
+            const email = emails[0].value;
+            const profile_pic = photos[0]?.value || null;
+
+            // Check user in database
+            let user = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
+
+            if (user.rows.length === 0) {
+                const newUser = await pool.query(
+                    "INSERT INTO users (name, email, profile_pic, role, is_approved, password) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *",
+                    [displayName, email, profile_pic, 'student', true, 'google_authenticated']
+                );
+                return done(null, newUser.rows[0]);
+            }
+            return done(null, user.rows[0]);
+        } catch (err) {
+          console.error("Google Auth Strategy Error:", err);
+          return done(err, null);
         }
-        return done(null, user.rows[0]);
-    } catch (err) {
-      console.error("Google Auth Error:", err);
-      return done(err, null);
-    }
-  }
-));
+      }
+    ));
+}
 
-
+// Regular Auth Routes
 router.post('/login', authController.login);
 router.post('/signup', authController.signup);
-
 router.post('/reset-password', authController.resetPassword);
-
 router.get('/users', verifyToken, authController.getUsers); 
 
-router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
+// --- GOOGLE AUTH STEPS ---
 
-router.get('/google/callback', 
-  passport.authenticate('google', { 
-    failureRedirect: 'http://localhost:3000/login', 
-    session: true 
-  }),
-  (req, res) => {
-    const user = req.user;
+router.get('/google', passport.authenticate('google', { 
+    scope: ['profile', 'email'],
+    prompt: 'select_account' 
+}));
 
-    res.cookie('role', user.role, { path: '/' });
-    res.cookie('userId', user.id, { path: '/' });
+router.get('/google/callback', (req, res, next) => {
+    passport.authenticate('google', (err, user, info) => {
+        if (err) {
+            console.error("Callback Auth Error:", err);
+            return res.status(500).json({ success: false, message: "Auth Failed", error: err.message });
+        }
+        if (!user) {
+            return res.redirect(`${CLIENT_URL}/login?error=auth_failed`);
+        }
+        
+        req.logIn(user, (loginErr) => {
+            if (loginErr) {
+                console.error("Login Session Error:", loginErr);
+                return next(loginErr);
+            }
+            
+            const isProd = process.env.NODE_ENV === 'production';
+            const cookieOptions = { 
+                path: '/', 
+                secure: isProd, 
+                sameSite: isProd ? 'none' : 'lax', 
+                maxAge: 24 * 60 * 60 * 1000 
+            };
 
-    console.log(`Redirecting User: ${user.email} with Role: ${user.role}`);
+            res.cookie('role', user.role, cookieOptions);
+            res.cookie('userId', user.id.toString(), cookieOptions);
 
-    if (user.role === 'admin') {
-        return res.redirect('http://localhost:3000/admin');
-    } else if (user.role === 'teacher') {
-        return res.redirect('http://localhost:3000/teacher');
-    } else {
-        return res.redirect(`http://localhost:3000/dashboard/student/${user.id}`);
-    }
-  }
-);
+            let redirectPath = '/dashboard';
+            if (user.role === 'admin') {
+                redirectPath = '/admin';
+            } else if (user.role === 'teacher') {
+                redirectPath = '/teacher';
+            } else {
+                redirectPath = `/dashboard/student/${user.id}`;
+            }
+            
+            return res.redirect(`${CLIENT_URL}${redirectPath}`);
+        });
+    })(req, res, next);
+});
 
 export default router;

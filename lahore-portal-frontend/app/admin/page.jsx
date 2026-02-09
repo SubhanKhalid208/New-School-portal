@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react';
-import { Users, BookOpen, GraduationCap, Trash2, Edit, Search, X, Upload, CheckCircle } from 'lucide-react';
+import { Users, BookOpen, GraduationCap, Trash2, Edit, Search, X, Upload, CheckCircle, FileUp } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
 export default function AdminDashboard() {
@@ -8,6 +8,7 @@ export default function AdminDashboard() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [bulkLoading, setBulkLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   
   const [showModal, setShowModal] = useState(false);
@@ -21,6 +22,64 @@ export default function AdminDashboard() {
   });
 
   const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+
+  // --- TOKEN HELPER FUNCTION ---
+  const getAuthToken = () => {
+    if (typeof document === 'undefined') return null;
+    return document.cookie
+      .split('; ')
+      .find(row => row.startsWith('token='))
+      ?.split('=')[1];
+  };
+
+  // --- FIXED: BULK UPLOAD HANDLER ---
+  const handleBulkUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (!file.name.endsWith('.csv')) {
+      toast.error("Please select a valid CSV file!");
+      return;
+    }
+
+    const token = getAuthToken();
+    if (!token) {
+      toast.error("Session expired! Please login again.");
+      return;
+    }
+
+    const data = new FormData();
+    data.append('file', file);
+
+    try {
+      setBulkLoading(true);
+      const loadingToast = toast.loading("Uploading bulk records to Lahore Portal...");
+
+      const res = await fetch(`${API_BASE}/student/bulk-upload`, {
+        method: 'POST',
+        body: data,
+        headers: {
+          'Authorization': `Bearer ${token}` 
+        }
+      });
+
+      const result = await res.json();
+      toast.dismiss(loadingToast);
+
+      if (res.ok) {
+        toast.success(result.message || "Bulk upload successful!");
+        fetchUsers();
+        fetchStats();
+      } else {
+        toast.error(result.error || "Ghalat ya Expired Token!");
+      }
+    } catch (err) {
+      toast.error("Network Error: Backend se rabta nahi ho saka");
+    } finally {
+      setBulkLoading(false);
+      e.target.value = ''; 
+    }
+  };
 
   const handleImageUpload = async (file) => {
     if (!file) return;
@@ -65,7 +124,7 @@ export default function AdminDashboard() {
     }
   }, [API_BASE]);
 
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     try {
       const res = await fetch(`${API_BASE}/admin/stats`);
       const data = await res.json();
@@ -75,12 +134,12 @@ export default function AdminDashboard() {
         courses: data.subjects || 0
       });
     } catch (err) { console.error("Stats error"); }
-  };
+  }, [API_BASE]);
 
   useEffect(() => {
     fetchStats();
     fetchUsers();
-  }, [fetchUsers]);
+  }, [fetchUsers, fetchStats]);
 
   const handleSearch = (e) => {
     const value = e.target.value;
@@ -147,12 +206,19 @@ export default function AdminDashboard() {
           <h1 className="text-3xl font-black italic text-green-500 tracking-tighter uppercase">Admin Control Panel</h1>
           <p className="text-gray-500 text-sm">Lahore Education Portal | Master Overview</p>
         </div>
-        <button onClick={() => openModal()} className="bg-green-600 hover:bg-green-700 px-6 py-2 rounded-xl font-bold flex items-center gap-2">
-          <Users size={18}/> Add New User
-        </button>
+        
+        <div className="flex gap-3">
+          <label className={`cursor-pointer ${bulkLoading ? 'bg-gray-700' : 'bg-blue-600 hover:bg-blue-700'} px-6 py-2 rounded-xl font-bold flex items-center gap-2 transition-all`}>
+            {bulkLoading ? "Processing..." : <><FileUp size={18}/> Bulk Upload (CSV)</>}
+            <input type="file" className="hidden" accept=".csv" onChange={handleBulkUpload} disabled={bulkLoading} />
+          </label>
+
+          <button onClick={() => openModal()} className="bg-green-600 hover:bg-green-700 px-6 py-2 rounded-xl font-bold flex items-center gap-2">
+            <Users size={18}/> Add New User
+          </button>
+        </div>
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
         <StatCard icon={<GraduationCap/>} label="Total Students" value={stats.students} color="blue" />
         <StatCard icon={<Users/>} label="Total Teachers" value={stats.teachers} color="green" />
@@ -227,8 +293,6 @@ export default function AdminDashboard() {
             <button onClick={closeModal} className="absolute right-4 top-4 text-gray-500 hover:text-white"><X size={22}/></button>
             <h2 className="text-2xl font-black mb-6 italic text-green-500 uppercase">{editingUserId ? "Edit User" : "Create User"}</h2>
             <form onSubmit={handleSaveUser} className="space-y-4">
-              
-              {/* Profile Image Section */}
               <div className="flex flex-col items-center justify-center border-2 border-dashed border-gray-800 rounded-xl p-4 bg-gray-900/30">
                 {formData.profile_pic ? (
                   <div className="relative">
@@ -271,7 +335,6 @@ export default function AdminDashboard() {
   );
 }
 
-// Subhan, niche wale components wese hi kaam karenge
 function StatCard({icon, label, value, color}) {
   const colors = { blue: "bg-blue-500/10 text-blue-500", green: "bg-green-500/10 text-green-500", purple: "bg-purple-500/10 text-purple-500" };
   return (

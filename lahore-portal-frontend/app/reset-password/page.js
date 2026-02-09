@@ -1,10 +1,10 @@
 "use client"; 
-
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import axios from 'axios';
 
-export default function ResetPasswordPage() {
+// 1. Pehle aik chota component banaya jo logic handle karega
+function ResetPasswordContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
     
@@ -14,26 +14,73 @@ export default function ResetPasswordPage() {
     const [message, setMessage] = useState('');
     const [loading, setLoading] = useState(false);
 
+    const getBaseUrl = () => {
+      const url = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+      return url.endsWith('/api') ? url : `${url}/api`;
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
         try {
-        
-            const res = await axios.post('http://localhost:5000/api/auth/reset-password', {
+            if (!token) {
+                setMessage("Error: Token nahi mila - link expire ho gaya ya ghalat hai");
+                setLoading(false);
+                return;
+            }
+
+            if (password.length < 6) {
+                setMessage("Error: Password kam se kam 6 characters ka hona chahiye");
+                setLoading(false);
+                return;
+            }
+
+            const API_URL = getBaseUrl();
+            console.log(`📡 Sending reset password request to: ${API_URL}/auth/reset-password`);
+            console.log(`🔐 Token: ${token.substring(0, 10)}...`);
+            
+            const res = await axios.post(`${API_URL}/auth/reset-password`, {
                 token,
                 password
             });
-            setMessage("Shabash! Password set ho gaya hai. 3 second mein login par ja rahe hain...");
+
+            console.log("✅ Password update successful");
+            setMessage("✅ Shabash! Password set ho gaya hai. 3 second mein login par ja rahe hain...");
             setTimeout(() => router.push('/login'), 3000);
         } catch (err) {
-            setMessage("Error: " + (err.response?.data?.error || "Kuch ghalat hua"));
+            console.error("❌ Reset Password Error:", err);
+            const errorMsg = err.response?.data?.error || err.message || "Kuch ghalat hua";
+            setMessage("Error: " + errorMsg);
         } finally {
             setLoading(false);
         }
     };
 
+    if (!token) {
+        return (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: '100px' }}>
+                <h1 style={{ color: '#dc3545' }}>Lahore Portal - Invalid Link</h1>
+                <p>Ye link expire ho gaya ya ghalat hai. Email se naiya link mangwayein.</p>
+                <button 
+                    onClick={() => router.push('/login')}
+                    style={{
+                        marginTop: '20px',
+                        padding: '12px 25px',
+                        backgroundColor: '#28a745',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '5px',
+                        cursor: 'pointer'
+                    }}
+                >
+                    Back to Login
+                </button>
+            </div>
+        );
+    }
+
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: '100px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: '100px', fontFamily: 'Arial, sans-serif' }}>
             <h1 style={{ color: '#28a745' }}>Lahore Portal - Set Password</h1>
             <p>Apna naya password yahan likhein:</p>
             
@@ -55,13 +102,23 @@ export default function ResetPasswordPage() {
                         color: 'white', 
                         border: 'none', 
                         borderRadius: '5px',
-                        cursor: 'pointer'
+                        cursor: loading ? 'not-allowed' : 'pointer',
+                        opacity: loading ? 0.6 : 1
                     }}
                 >
                     {loading ? "Update ho raha hai..." : "Password Update Karein"}
                 </button>
             </form>
-            {message && <p style={{ marginTop: '20px', fontWeight: 'bold' }}>{message}</p>}
+            {message && <p style={{ marginTop: '20px', fontWeight: 'bold', color: message.includes('Error') ? '#dc3545' : '#28a745' }}>{message}</p>}
         </div>
+    );
+}
+
+// 2. Main Page component jo Suspense use karta hai
+export default function ResetPasswordPage() {
+    return (
+        <Suspense fallback={<div style={{ textAlign: 'center', marginTop: '100px' }}>Loading...</div>}>
+            <ResetPasswordContent />
+        </Suspense>
     );
 }
