@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'react-hot-toast';
 import Cookies from 'js-cookie';
+import { getApiUrl, fetchWithRetry } from '@/app/utils/api';
 
 export default function AttendancePage() {
   const [students, setStudents] = useState([]);
@@ -15,9 +16,12 @@ export default function AttendancePage() {
   useEffect(() => {
     async function initData() {
       try {
+        const stuUrl = getApiUrl('/teacher/students');
+        const courseUrl = getApiUrl('/courses');
+        
         const [stuRes, courseRes] = await Promise.all([
-          fetch(`${process.env.NEXT_PUBLIC_API_URL}/teacher/students`),
-          fetch(`${process.env.NEXT_PUBLIC_API_URL}/courses`) 
+          fetchWithRetry(stuUrl, { method: 'GET' }, 1),
+          fetchWithRetry(courseUrl, { method: 'GET' }, 1)
         ]);
         
         const studentsData = await stuRes.json();
@@ -26,7 +30,7 @@ export default function AttendancePage() {
         setStudents(Array.isArray(studentsData) ? studentsData : []);
         setCourses(Array.isArray(coursesData) ? coursesData : []);
       } catch (err) {
-        console.error("Fetch Error:", err);
+        console.error("❌ Fetch Error:", err);
         toast.error("Lahore Portal ka data load nahi ho saka");
       } finally {
         setLoading(false);
@@ -56,7 +60,8 @@ export default function AttendancePage() {
     }
 
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/attendance/mark`, {
+      const url = getApiUrl('/attendance/mark');
+      const res = await fetchWithRetry(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -66,13 +71,17 @@ export default function AttendancePage() {
           teacherId,
           date: new Date().toISOString().split('T')[0]
         })
-      });
+      }, 1);
 
       if (res.ok) {
-        toast.success(`${status === 'present' ? 'Present' : 'Absent'} mark ho gayi!`);
+        toast.success(`✅ ${status === 'present' ? 'Present' : 'Absent'} mark ho gayi!`);
         setMarkedStudents(prev => [...prev, studentId]);
+      } else {
+        const error = await res.json();
+        toast.error(error.error || "Attendance save nahi ho saki");
       }
     } catch (err) {
+      console.error("❌ Attendance error:", err);
       toast.error("Attendance save nahi ho saki");
     }
   };

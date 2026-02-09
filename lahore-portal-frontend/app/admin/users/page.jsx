@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react';
 import { toast } from 'react-hot-toast';
+import { getApiUrl, fetchWithRetry } from '@/app/utils/api';
 
 export default function AdminUsers() {
   const [formData, setFormData] = useState({
@@ -13,19 +14,22 @@ export default function AdminUsers() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/register`, {
+      const url = getApiUrl('/auth/register');
+      const res = await fetchWithRetry(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
-      });
+      }, 1);
 
       if (res.ok) {
-        toast.success(`${formData.name} ko kamyabi se add kar diya gaya!`);
+        toast.success(`✅ ${formData.name} ko kamyabi se add kar diya gaya!`);
         setFormData({ name: '', email: '', password: '', role: 'student' });
       } else {
-        toast.error("User add nahi ho saka.");
+        const error = await res.json();
+        toast.error(error.error || "User add nahi ho saka.");
       }
     } catch (err) {
+      console.error("❌ Submit error:", err);
       toast.error("Server connection ka masla hai.");
     }
   };

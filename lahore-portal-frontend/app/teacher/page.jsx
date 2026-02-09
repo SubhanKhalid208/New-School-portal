@@ -1,8 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react';
 import { toast } from 'react-hot-toast';
-import Cookies from 'js-cookie';
-
+import Cookies from 'js-cookie';import { getApiUrl, fetchWithRetry } from '@/app/utils/api';
 export default function TeacherDashboard() {
   const [myCourses, setMyCourses] = useState([]);
   const [stats, setStats] = useState({ totalStudents: 0, totalSubjects: 0, teacherName: '' });
@@ -17,14 +16,17 @@ export default function TeacherDashboard() {
 
   const fetchDashboardData = async () => {
     try {
+      const courseUrl = getApiUrl(`/teacher/my-courses?teacherId=${teacherId}`);
+      const statsUrl = getApiUrl(`/teacher/stats?teacherId=${teacherId}`);
+      
       const [courseRes, statsRes] = await Promise.all([
-        fetch(`${process.env.NEXT_PUBLIC_API_URL}/teacher/my-courses?teacherId=${teacherId}`),
-        fetch(`${process.env.NEXT_PUBLIC_API_URL}/teacher/stats?teacherId=${teacherId}`)
+        fetchWithRetry(courseUrl, { method: 'GET' }, 1),
+        fetchWithRetry(statsUrl, { method: 'GET' }, 1)
       ]);
 
       const courses = await courseRes.json();
       const statistics = await statsRes.json();
-
+      
       setMyCourses(Array.isArray(courses) ? courses : []);
       
       setStats({
@@ -33,8 +35,7 @@ export default function TeacherDashboard() {
         teacherName: statistics.teacherName || '' 
       }); 
     } catch (err) {
-      toast.error("Dashboard data load nahi ho saka.");
-    } finally {
+      console.error("❌ Dashboard fetch error:", err);
       setLoading(false);
     }
   };
@@ -53,22 +54,25 @@ export default function TeacherDashboard() {
       : `/teacher/courses/add`;
 
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}${endpoint}`, {
+      const url = getApiUrl(endpoint);
+      const res = await fetchWithRetry(url, {
         method: method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...formData, teacher_id: teacherId })
-      });
+      }, 1);
 
       if (res.ok) {
-        toast.success(editingCourse ? "Subject update ho gaya!" : "Naya subject ban gaya!");
+        toast.success(editingCourse ? "✅ Subject update ho gaya!" : "✅ Naya subject ban gaya!");
         setShowModal(false);
         setEditingCourse(null);
         setFormData({ title: '', description: '' });
         fetchDashboardData();
       } else {
-        toast.error("Process fail ho gaya.");
+        const error = await res.json();
+        toast.error(error.error || "Process fail ho gaya.");
       }
     } catch (err) {
+      console.error("❌ Submit error:", err);
       toast.error("Server connection error.");
     }
   };
@@ -76,14 +80,19 @@ export default function TeacherDashboard() {
   const handleDelete = async (id) => {
     if (!window.confirm("Kya aap waqai delete karna chahte hain?")) return;
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/teacher/courses/${id}`, {
+      const url = getApiUrl(`/teacher/courses/${id}`);
+      const res = await fetchWithRetry(url, {
         method: 'DELETE'
-      });
+      }, 1);
+      
       if (res.ok) {
-        toast.success("Subject delete ho gaya.");
+        toast.success("✅ Subject delete ho gaya.");
         fetchDashboardData();
+      } else {
+        toast.error("❌ Delete fail.");
       }
     } catch (err) {
+      console.error("❌ Delete error:", err);
       toast.error("Delete command fail ho gayi.");
     }
   };
